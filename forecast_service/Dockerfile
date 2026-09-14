@@ -13,8 +13,8 @@ COPY pyproject.toml uv.lock ./
 
 RUN uv sync --frozen --no-install-project
 
-COPY forecast-service/app ./app
-COPY forecast-service/data ./data
+COPY forecast_service/app ./app
+COPY forecast_service/data ./data
 
 RUN uv sync --frozen
 RUN uv run python -m app.train

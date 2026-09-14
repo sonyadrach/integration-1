@@ -42,30 +42,18 @@ CSV_COLUMNS = {
 
 
 def load_training_data() -> pd.DataFrame:
-    """Load and normalize the Ames Housing training dataset.
-
-    The source CSV uses column names with spaces, while the application
-    uses normalized column names without spaces.
-    """
     df = pd.read_csv(DATA_PATH)
-
-    # Remove accidental whitespace around column names.
     df.columns = df.columns.str.strip()
 
-    missing_columns = set(CSV_COLUMNS) - set(df.columns)
-
-    if missing_columns:
+    required = set(NUM + CAT + [TARGET])
+    missing = required - set(df.columns)
+    if missing:
         raise ValueError(
             "Training dataset is missing required columns: "
-            f"{sorted(missing_columns)}"
+            f"{sorted(missing)}"
         )
 
-    df = df.rename(columns=CSV_COLUMNS)
-
-    columns = NUM + CAT + [TARGET]
-
-    return df[columns].dropna(subset=[TARGET])
-
+    return df[NUM + CAT + [TARGET]].dropna(subset=[TARGET])
 
 def train_model() -> Pipeline:
     """Build and train the Ridge regression pipeline.

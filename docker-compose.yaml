@@ -16,7 +16,7 @@ services:
   forecast-api:
     build:
       context: .
-      dockerfile: forecast-service/Dockerfile
+      dockerfile: forecast_service/Dockerfile
     environment:
       MODEL_VERSION: ${MODEL_VERSION}
     ports:
@@ -36,7 +36,7 @@ services:
   orders-api:
     build:
       context: .
-      dockerfile: orders-service/Dockerfile
+      dockerfile: orders_service/Dockerfile
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       FORECAST_URL: http://forecast-api:8001

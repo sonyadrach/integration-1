@@ -13,7 +13,7 @@ COPY pyproject.toml uv.lock ./
 
 RUN uv sync --frozen --no-install-project
 
-COPY orders-service/app ./app
+COPY orders_service/app ./app
 
 RUN uv sync --frozen
 

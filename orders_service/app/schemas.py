@@ -1,60 +1,36 @@
 from datetime import datetime
-
-from sqlalchemy import DateTime, Float, Integer, String, func
-from sqlalchemy.orm import Mapped, mapped_column
-
-from .database import Base
+from pydantic import BaseModel, ConfigDict
 
 
-class Order(Base):
-    """Database model representing a house pricing order."""
+class OrderBase(BaseModel):
+    client_name: str
+    gr_liv_area: float
+    total_bsmt_sf: float
+    garage_area: float
+    year_built: int
+    overall_qual: int
+    ms_zoning: str
 
-    __tablename__ = "orders"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+class OrderCreate(OrderBase):
+    pass
 
-    client_name: Mapped[str] = mapped_column(
-        String(120),
-        nullable=False,
-    )
 
-    gr_liv_area: Mapped[float] = mapped_column(
-        Float,
-        nullable=False,
-    )
+class OrderUpdate(BaseModel):
+    client_name: str | None = None
+    gr_liv_area: float | None = None
+    total_bsmt_sf: float | None = None
+    garage_area: float | None = None
+    year_built: int | None = None
+    overall_qual: int | None = None
+    ms_zoning: str | None = None
+    predicted_price: float | None = None
 
-    total_bsmt_sf: Mapped[float] = mapped_column(
-        Float,
-        nullable=False,
-    )
 
-    garage_area: Mapped[float] = mapped_column(
-        Float,
-        nullable=False,
-    )
+class OrderRead(OrderBase):
+    id: int
+    predicted_price: float | None = None
+    created_at: datetime
 
-    year_built: Mapped[int] = mapped_column(
-        Integer,
-        nullable=False,
-    )
+    model_config = ConfigDict(from_attributes=True)
 
-    overall_qual: Mapped[int] = mapped_column(
-        Integer,
-        nullable=False,
-    )
-
-    ms_zoning: Mapped[str] = mapped_column(
-        String(10),
-        nullable=False,
-    )
-
-    predicted_price: Mapped[float | None] = mapped_column(
-        Float,
-        nullable=True,
-    )
-
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        nullable=False,
-    )
