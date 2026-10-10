@@ -9,7 +9,7 @@ from tenacity import (
     retry,
     retry_if_exception_type,
     stop_after_attempt,
-    wait_exponential,
+    wait_fixed,
 )
 
 from . import crud, schemas
@@ -32,7 +32,14 @@ FORECAST_URL = os.getenv(
 FORECAST_TIMEOUT = float(
     os.getenv("FORECAST_TIMEOUT", "3.0")
 )
-
+FORECAST_FEATURE_KEYS = {
+    "gr_liv_area",
+    "total_bsmt_sf",
+    "garage_area",
+    "year_built",
+    "overall_qual",
+    "ms_zoning",
+}
 # Tables are created automatically for the initial version.
 # In production, replace this with Alembic migrations.
 Base.metadata.create_all(bind=engine)
@@ -44,29 +51,26 @@ app = FastAPI(
 
 
 @retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=0.3, max=2),
-    retry=retry_if_exception_type(
-        (httpx.ConnectError, httpx.TimeoutException)
-    ),
+    stop=stop_after_attempt(2),
+    wait=wait_fixed(0.2),
+    retry=retry_if_exception_type(httpx.TimeoutException),
     reraise=True,
 )
 def _request_prediction(payload: dict) -> float:
     """Request a price prediction from the forecasting service.
 
-    Retry only transient network failures such as connection errors
-    and timeouts. HTTP errors are not retried.
+    Only features relevant to the ML model are sent.
     """
-    response = httpx.post(
-        f"{FORECAST_URL}/predict",
-        json=payload,
-        timeout=FORECAST_TIMEOUT,
-    )
-    response.raise_for_status()
+    # фільтрування лише поля нерухомості 
+    model_payload = {k: v for k, v in payload.items() if k in FORECAST_FEATURE_KEYS}
 
-    return float(response.json()["predicted_price"])
-
-
+    with httpx.Client(timeout=FORECAST_TIMEOUT) as client:
+        response = client.post(
+            f"{FORECAST_URL}/predict",
+            json=model_payload,
+        )
+        response.raise_for_status()
+        return float(response.json()["predicted_price"])
 
 @app.get("/health")
 def health() -> dict[str, str]:
@@ -86,15 +90,19 @@ def create_order(
     """Create an order and attempt to obtain a price prediction.
 
     If the forecasting service is unavailable, the order is still
-    persisted with a null predicted price.
+    persisted with a null predicted price (graceful degradation).
     """
     try:
         price = _request_prediction(data.model_dump())
-    except Exception as exc:
-        logger.error(
-            "Forecast service is unavailable: %s",
+    except (httpx.RequestError, httpx.HTTPStatusError) as exc:
+        # Логує як warning без падіння обробника
+        logger.warning(
+            "Forecast service unavailable or returned error: %s. Proceeding with price=None.",
             exc,
         )
+        price = None
+    except Exception as exc:
+        logger.warning("Unexpected error during price prediction: %s", exc)
         price = None
 
     return crud.create_order(
