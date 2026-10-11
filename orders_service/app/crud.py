@@ -47,16 +47,18 @@ def update_order(
     db: Session,
     order: models.Order,
     data: schemas.OrderUpdate,
+    new_price: float | None = None,
 ) -> models.Order:
     """Update the provided fields of an existing order."""
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(order, key, value)
+    if new_price is not None:
+        order.predicted_price = new_price
 
     db.commit()
     db.refresh(order)
 
     return order
-
 
 def delete_order(db: Session, order: models.Order) -> None:
     """Delete an existing order from the database."""

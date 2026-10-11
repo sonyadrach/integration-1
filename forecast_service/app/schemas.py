@@ -26,7 +26,7 @@ class PredictRequest(BaseModel):
 
     year_built: int = Field(
         ge=1872,
-        le=2010,
+        le=2026,
         description="Original construction year (Ames: Year Built).",
     )
 

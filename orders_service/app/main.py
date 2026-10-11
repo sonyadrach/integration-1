@@ -170,7 +170,7 @@ def update_order(
     data: schemas.OrderUpdate,
     db: Session = Depends(get_db),
 ):
-    """Update an existing order."""
+    """Update an existing order and recalculate price if property features change."""
     order = crud.get_order(db, oid)
 
     if order is None:
@@ -179,10 +179,35 @@ def update_order(
             detail="Order not found.",
         )
 
+    update_dict = data.model_dump(exclude_unset=True)
+    new_price = None
+
+    # Перевіряє чи є серед змінених полів характеристики житла
+    has_property_changes = any(field in FORECAST_FEATURE_KEYS for field in update_dict)
+
+    if has_property_changes:
+        # бере нові значення а незмінені - з існуючого запису в базі
+        features = {}
+        for field in FORECAST_FEATURE_KEYS:
+            if field in update_dict:
+                features[field] = update_dict[field]
+            else:
+                features[field] = getattr(order, field)
+
+        try:
+            new_price = _request_prediction(features)
+        except Exception as exc:
+            logger.warning(
+                "Forecast service unavailable during PATCH for order %s: %s. Keeping previous price.",
+                oid,
+                exc,
+            )
+           
     return crud.update_order(
         db,
         order,
         data,
+        new_price=new_price,
     )
 
 
